@@ -6,6 +6,8 @@
     <property name="src" location="src"/>
     <property name="resources" location="resources"/>
     <property name="target" location="target"/>
+    <property name="test.src" location="test"/>
+    <property name="test.lib" location="test/lib"/>
     <property name="dist"  location="dist"/>
     <property name="nl" value="${line.separator}" />
     <property name="org" value="ibcalpha"/>
@@ -13,6 +15,16 @@
 
     <path id="external.classpath">
         <fileset dir="${env.IBC_BIN}" includes="**/*.jar"/>
+    </path>
+
+    <!-- Unit tests. Deliberately kept out of ${src} so that neither the tests nor
+         JUnit itself can ever be compiled into IBC.jar: the 'compile' target reads
+         ${src} only, and 'dist' is unaffected by anything below. -->
+    <path id="test.classpath">
+        <path refid="external.classpath"/>
+        <pathelement location="${target}/classes"/>
+        <pathelement location="${target}/test-classes"/>
+        <fileset dir="${test.lib}" includes="*.jar"/>
     </path>
 
     <target name="clean" description="clean up">
@@ -38,6 +50,28 @@ public class IbcVersionInfo {
             <classpath refid="external.classpath"/>
             <compilerarg value="-Xlint:all"/>
         </javac>
+    </target>
+
+    <target name="test-compile" depends="compile" description="compile the unit tests">
+        <mkdir dir="${target}/test-classes"/>
+        <javac srcdir="${test.src}" destdir="${target}/test-classes" source="8" target="8" includeantruntime="false">
+            <classpath refid="test.classpath"/>
+        </javac>
+    </target>
+
+    <target name="test" depends="test-compile" description="run the unit tests">
+        <!-- The TWS jars are on the test classpath (compile needs them), so the
+             fail-soft tests really do reach twslaunch.jsetting.H. Cap the run in
+             case a TWS static initialiser blocks outside the Gateway JVM. -->
+        <junit printsummary="yes" haltonfailure="yes" fork="yes" forkmode="once"
+               timeout="180000">
+            <sysproperty key="java.awt.headless" value="true"/>
+            <classpath refid="test.classpath"/>
+            <formatter type="brief" usefile="false"/>
+            <batchtest>
+                <fileset dir="${test.src}" includes="**/*Test.java"/>
+            </batchtest>
+        </junit>
     </target>
 
     <target name="jar" depends="compile" description="generate the jar">
