@@ -534,6 +534,7 @@ public class IbcTws {
         configureApiPort();
         configureMasterClientID();
         configureReadOnlyApi();
+        configureApiLogging();
         configureSendMarketDataInLotsForUSstocks();
         configureAutoLogoffOrRestart();
         configureApiPrecautions();
@@ -607,6 +608,23 @@ public class IbcTws {
         }
     }
     
+    /**
+     * Ticks "Create API message log file" so that API message capture survives a
+     * container start. Unset means "leave TWS alone", matching how ReadOnlyApi
+     * and SendMarketDataInLotsForUSstocks treat an absent setting -- the task is
+     * only queued when ApiLogging is explicitly present in config.ini.
+     */
+    private static void configureApiLogging() {
+        String configName = "ApiLogging";
+        if (!Settings.settings().getString(configName, "").equals("")) {
+            if (SessionManager.isFIX()){
+                Utils.logToConsole(configName + " - ignored for FIX");
+                return;
+            }
+            (new ConfigurationTask(new ConfigureApiLogTask(Settings.settings().getBoolean(configName, true)))).executeAsync();
+        }
+    }
+
     private static void configureSendMarketDataInLotsForUSstocks(){
         String configName = "SendMarketDataInLotsForUSstocks";
         String sendMarketDataInLots = Settings.settings().getString(configName, "");
